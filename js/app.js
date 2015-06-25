@@ -1,43 +1,28 @@
 "use strict";
 
 var React = require('react');
+var $ = require('jquery');
 
 var App = React.createClass({
 
   getInitialState: function() {
     return {
-      count: 1,
-      item: '',
-      items: []
+      language: 'javascript',
+      results: []
     }
+  },
+
+  componentDidMount: function() {
+    this._search(this.state.language);
   },
 
   render: function() {
     return <div>
-      <h2>Hello {this.props.name}!</h2>
-      <h4>Count: {this.state.count}</h4>
-      <button type="button" className="btn btn-primary" onClick={this._incrementCount}>Increment Count</button>
+      <h2>Github Search</h2>
 
-      <form onSubmit={this._submitForm}>
-        <div className="form-group">
-          <label htmlFor="item">Item</label>
-          <input type="text" className="form-control" id="item" value={this.state.item} onChange={this._onItemChange}/>
-        </div>
-        <button type="submit" className="btn btn-secondary" disabled={this.state.item.length === 0}>Add Item</button>
-      </form>
-      <div>
-        <ItemsTable items={this.state.items} appDeleteHandler={this._deleteItem}/>
-      </div>
+      <Search initialLanguage={this.state.language} handleSearch={this._handleSearch}/>
+      <ResultsTable results={this.state.results}/>
     </div>;
-  },
-
-  _submitForm:function(e) {
-    e.preventDefault();
-    this.setState({
-      items: this.state.items.concat(this.state.item),
-      item: ''
-    });
-
   },
 
   _onItemChange: function(e) {
@@ -46,39 +31,74 @@ var App = React.createClass({
     });
   },
 
-  _incrementCount: function() {
+  _handleSearch: function(language) {
     this.setState({
-      count: this.state.count + 1
+      language: language
     });
+    this._search(language);
   },
 
-  _deleteItem: function(item) {
-    this.setState({
-      items: this.state.items.filter(function(i) {
-        return i !== item;
-      })
-    });
+  _search: function(language) {
+    $.ajax({
+        method: 'GET',
+        url: '/github/search?language=' + language
+      }).then(function (response) {
+        this.setState({
+          results: response.items
+        });
+      }.bind(this));
   }
 });
 
-var ItemsTable = React.createClass({
+var Search = React.createClass({
+
+  getInitialState: function() {
+    return {
+      language: this.props.initialLanguage
+    };
+  },
+
+  render: function() {
+    return <form onSubmit={this._submitForm}>
+      <div className="form-group">
+        <label htmlFor="language">Language</label>
+        <input type="text" className="form-control" id="language" value={this.state.language} onChange={this._onLanguageChange}/>
+      </div>
+      <button type="submit" className="btn btn-primary" disabled={this.state.language.length === 0}>Search</button>
+    </form>;
+  },
+
+  _submitForm:function(e) {
+    e.preventDefault();
+    this.props.handleSearch(this.state.language);
+  },
+
+  _onLanguageChange: function(e) {
+    this.setState({
+      language: e.target.value
+    });
+  }
+})
+
+var ResultsTable = React.createClass({
   getDefaultProps: function() {
     return {
-      items: []
+      results: []
     }
   },
 
   render: function() {
-    var rows = this.props.items.map(function(item, index) {
-      return <ItemRow key={index} item={item} tableDeleteHandler={this._deleteRow}/>
+    var rows = this.props.results.map(function(result, index) {
+      return <ResultRow key={index} result={result} />
     }.bind(this));
 
     return <div>
-      <h4>Item count: {this.props.items.length}</h4>
+      <h4>Results count: {this.props.results.length}</h4>
       <table className="table table-striped">
         <thead>
           <tr>
             <th>Name</th>
+            <th>Stars</th>
           </tr>
         </thead>
         <tbody>
@@ -86,27 +106,18 @@ var ItemsTable = React.createClass({
         </tbody>
       </table>
     </div>;
-  },
-
-  _deleteRow: function(item) {
-    this.props.appDeleteHandler(item);
-  }
+  }, 
 });
 
-var ItemRow = React.createClass({
+var ResultRow = React.createClass({
   
   render: function() {
     return <tr>
-      <td>{this.props.item}</td>
-      <td>
-        <button type="button" className="btn btn-link" onClick={this._onDeleteClick}>Delete</button>
-      </td>
+      <td>{this.props.result.name}</td>
+      <td>{this.props.result.stargazers_count}</td>
     </tr>;
   },
 
-  _onDeleteClick: function() {
-    this.props.tableDeleteHandler(this.props.item);
-  }
 });
 
-React.render(<App name='World' />, document.getElementById('main'));
+React.render(<App />, document.getElementById('main'));
